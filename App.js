@@ -7,7 +7,7 @@
  */
 
 import React, {Component} from 'react';
-import {Alert, Text, View, Button} from 'react-native';
+import {AsyncStorage, Alert, Text, View, Button} from 'react-native';
 import firebase from '@firebase/app'
 import '@firebase/auth'
 import '@firebase/database';
@@ -22,6 +22,7 @@ class LoginSuccessScreen extends React.Component {
       title: "Welcome to my app"  
     }
   }
+
   render() {
     return (
       <View>
@@ -38,12 +39,48 @@ class LoginScreen extends React.Component {
     super(props);
     this.state = {
       email: '',
-      password: '' 
+      password: '' ,
+      temp: ''
     };
     this.textEmail = React.createRef();
     this.textPassword = React.createRef();
+    this.getAccount();
   }
 
+  getAccount = async() => {
+    try{
+      emailItem = await AsyncStorage.getItem('email');
+      passwordItem = await AsyncStorage.getItem('password');
+      this.setState({
+        temp: passwordItem
+      });
+      firebaseApp.auth().signInWithEmailAndPassword(emailItem, passwordItem)
+      .then(()=>{
+        Alert.alert(
+          'Login Successfully',
+          'Login Successfully',
+          [
+            {text: 'OK'}
+          ],
+          { cancelable: true }
+        )
+        this.props.navigation.navigate('LoginSuccess');
+      }).catch((error) => {
+        Alert.alert(
+          'Login Failed',
+          'Login Failed',
+          [
+            {text: 'OK'}
+          ],
+          { cancelable: true }
+        )
+      })  
+    }
+    catch (error) {
+      console.log(error.message);
+    }
+  }
+  
   static navigationOptions = ({navigation}) => {
     return {
       title: "Login"  
@@ -65,8 +102,11 @@ class LoginScreen extends React.Component {
           ],
           { cancelable: true }
         )
+        this.saveAccount();
         this.textEmail.current.clear();
         this.textPassword.current.clear();
+
+        this.props.navigation.navigate('LoginSuccess');
       }).catch((error) => {
         Alert.alert(
           'Login Failed',
@@ -77,6 +117,20 @@ class LoginScreen extends React.Component {
           { cancelable: true }
         )
       })  
+  }
+
+  saveAccount = async() => {
+    try{
+      await AsyncStorage.setItem('email', this.state.email);
+      await AsyncStorage.setItem('password', this.state.password); 
+      this.setState({
+        email: '',
+        password: ''
+      })
+    }
+    catch (error) {
+      console.log(error.message);
+    }
   }
 
   saveEmail = (text) => {
@@ -94,6 +148,7 @@ class LoginScreen extends React.Component {
   render() {
     return (
       <View>
+        <Text>{this.state.temp}</Text>
         <Text>Email: </Text>
         <TextInput ref={this.textEmail} placeholder="Input your email" onChangeText={(text) => {this.saveEmail(text)}}></TextInput>
         <Text>Password: </Text>
@@ -146,6 +201,10 @@ class SignupScreen extends React.Component {
           ],
           { cancelable: true }
         )
+        this.setState({
+          email: '',
+          password: ''
+        })
         this.textEmail.current.clear();
         this.textPassword.current.clear();
       }).catch((error) => {
