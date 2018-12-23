@@ -7,19 +7,29 @@
  */
 
 import React, {Component} from 'react';
-import {AsyncStorage, Alert, Text, View, Button} from 'react-native';
+import {AsyncStorage, Alert, Text, View, Button, ActivityIndicator} from 'react-native';
 import firebase from '@firebase/app'
 import '@firebase/auth'
 import '@firebase/database';
-import { createStackNavigator, createAppContainer } from "react-navigation";
+import { createStackNavigator, createAppContainer, createSwitchNavigator } from "react-navigation";
 import { TextInput } from 'react-native-gesture-handler';
 import {firebaseApp} from './FirebaseConfig'
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Successfully Logged in Screen~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/ 
-class LoginSuccessScreen extends React.Component {
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~App HomeScreen~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/ 
+class HomeScreen extends React.Component {
   static navigationOptions = ({navigation}) => {
     return {
       title: "Welcome to my app"  
+    }
+  }
+  
+  logout = async() => {
+    try{
+      await AsyncStorage.setItem('email'," ");
+      await AsyncStorage.setItem('password', " ");
+      this.props.navigation.navigate('AuthLoading');
+    }catch (error) {
+      console.log(error.message);
     }
   }
 
@@ -27,14 +37,14 @@ class LoginSuccessScreen extends React.Component {
     return (
       <View>
         <Text>Welcome to my app</Text>
-        <Button title="Logout" />
+        <Button title="Logout" onPress={()=>{this.logout()}} />
       </View>
     );
   }
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Log in Screen~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/ 
-class LoginScreen extends React.Component {
+class SignInScreen extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -44,41 +54,6 @@ class LoginScreen extends React.Component {
     };
     this.textEmail = React.createRef();
     this.textPassword = React.createRef();
-    this.getAccount();
-  }
-
-  getAccount = async() => {
-    try{
-      emailItem = await AsyncStorage.getItem('email');
-      passwordItem = await AsyncStorage.getItem('password');
-      this.setState({
-        temp: passwordItem
-      });
-      firebaseApp.auth().signInWithEmailAndPassword(emailItem, passwordItem)
-      .then(()=>{
-        Alert.alert(
-          'Login Successfully',
-          'Login Successfully',
-          [
-            {text: 'OK'}
-          ],
-          { cancelable: true }
-        )
-        this.props.navigation.navigate('LoginSuccess');
-      }).catch((error) => {
-        Alert.alert(
-          'Login Failed',
-          'Login Failed',
-          [
-            {text: 'OK'}
-          ],
-          { cancelable: true }
-        )
-      })  
-    }
-    catch (error) {
-      console.log(error.message);
-    }
   }
   
   static navigationOptions = ({navigation}) => {
@@ -102,11 +77,9 @@ class LoginScreen extends React.Component {
           ],
           { cancelable: true }
         )
-        this.saveAccount();
         this.textEmail.current.clear();
         this.textPassword.current.clear();
-
-        this.props.navigation.navigate('LoginSuccess');
+        this.saveAccount();
       }).catch((error) => {
         Alert.alert(
           'Login Failed',
@@ -123,10 +96,7 @@ class LoginScreen extends React.Component {
     try{
       await AsyncStorage.setItem('email', this.state.email);
       await AsyncStorage.setItem('password', this.state.password); 
-      this.setState({
-        email: '',
-        password: ''
-      })
+      this.props.navigation.navigate('App');
     }
     catch (error) {
       console.log(error.message);
@@ -152,7 +122,7 @@ class LoginScreen extends React.Component {
         <Text>Email: </Text>
         <TextInput ref={this.textEmail} placeholder="Input your email" onChangeText={(text) => {this.saveEmail(text)}}></TextInput>
         <Text>Password: </Text>
-        <TextInput ref={this.textPassword} placeholder="Input your password" onChangeText={(text) => {this.savePassword(text)}}></TextInput>
+        <TextInput secureTextEntry={true} ref={this.textPassword} placeholder="Input your password" onChangeText={(text) => {this.savePassword(text)}}></TextInput>
         <Button title="Login" onPress={() => {this.login()}} />
         <Button title="Signup" onPress={()=>{this.moveToSignUp()}} />
       </View>
@@ -201,12 +171,9 @@ class SignupScreen extends React.Component {
           ],
           { cancelable: true }
         )
-        this.setState({
-          email: '',
-          password: ''
-        })
         this.textEmail.current.clear();
         this.textPassword.current.clear();
+        this.props.navigation.navigate('SignIn');
       }).catch((error) => {
         Alert.alert(
           'Sign up Failed',
@@ -225,26 +192,73 @@ class SignupScreen extends React.Component {
         <Text>Email: </Text>
         <TextInput ref={this.textEmail} placeholder="Input your Email" onChangeText={(text) => {this.saveEmail(text)} }></TextInput>
         <Text>Password: </Text>
-        <TextInput ref={this.textPassword} placeholder="Input your password" onChangeText={(text) => {this.savePassword(text)} } ></TextInput>
+        <TextInput secureTextEntry={true} ref={this.textPassword} placeholder="Input your password" onChangeText={(text) => {this.savePassword(text)} } ></TextInput>
         <Button title="Signup" onPress={() => {this.submitData()}}/>
       </View>
     );
   }
 }
 
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~AuthLoadingScreen~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/ 
+class AuthLoadingScreen extends React.Component {
+  constructor() {
+    super();
+    this.getAccount();
+  }
+
+  getAccount = async() => {
+    try{
+      emailItem = await AsyncStorage.getItem('email');
+      passwordItem = await AsyncStorage.getItem('password');
+      firebaseApp.auth().signInWithEmailAndPassword(emailItem, passwordItem)
+      .then(()=>{
+        this.props.navigation.navigate('App');
+      }).catch((error) => {
+        this.props.navigation.navigate('Auth');
+      })  
+    }catch (error) {
+      console.log(error.message);
+    }
+  }
+
+  // Render any loading content that you like here
+  render() {
+    return (
+      <View>
+        <ActivityIndicator size="large" color="#0000ff"/>
+      </View>
+    );
+  }
+}
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Settings~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/ 
-const AppNavigator = createStackNavigator(
+const AppStack = createStackNavigator(
   {
-    LoginSuccess: LoginSuccessScreen,
-    Login: LoginScreen,
+    Home: HomeScreen 
+  },
+  {
+    initialRouteName: "Home"
+  }
+);
+const AuthStack = createStackNavigator(
+  {
+    SignIn: SignInScreen, 
     Signup: SignupScreen
   },
   {
-    initialRouteName: "Login"
+    initialRouteName: "SignIn"
   }
 );
 
-const AppContainer = createAppContainer(AppNavigator); 
+const AppContainer = createAppContainer(createSwitchNavigator(
+  {
+    AuthLoading: AuthLoadingScreen,
+    App: AppStack,
+    Auth: AuthStack
+  },
+  {
+    initialRouteName: 'AuthLoading',
+  }
+)); 
 
 export default class App extends Component {
   render() {
